@@ -1,314 +1,317 @@
-import {useEffect, useRef, useState} from "react";
-import Head from "next/head";
 import {Contract, providers, utils} from "ethers";
+import Head from "next/head";
+import React, {useEffect, useRef, useState} from "react";
+import Web3Modal from "web3modal";
+import {abi, NFT_CONTRACT_ADDRESS } from "../constants";
 import styles from "../styles/Home.module.css";
-import Web3Modal, { getProviderInfo } from "web3modal";
-import { NFT_CONTRACT_ABI, NFT_CONTRACT_ADDRESS } from "../constants";
 
 export default function Home() {
-    const [isOwner, setIsOwner]= useState(false);
-    const [presaleStarted, setPresaleStarted]= useState(false);
-    const [walletConnected, setWalletConnected] = useState(false);
-    const [presaleEnded, setPresaleEnded] = useState(false);
-    const [numTokensMinted, setNumTokensMinted] = useState("");
-    const [loading, setLoading]=useState(false);
-    const web3ModalRef = useRef();
-
-    const getNumMintedTokens = async () => {
-      try {
-        const provider = await getProviderOrSigner();
-        const nftContract = new Contract(
-          NFT_CONTRACT_ADDRESS,
-          NFT_CONTRACT_ABI,
-          provider
-        );
-
-        const numTokenIds= await nftContract.tokenIds();
-        setNumTokensMinted(numTokenIds.toString());
-
-      } catch (error) {
-        console.error(error)
-        
-      }
-    }
-
-    const presaleMint = async ()=>{
-      setLoading(true);
-      try {
-        const signer = await getProviderOrSigner(true);
-
-        const nftContract = new Contract(
-          NFT_CONTRACT_ADDRESS,
-          NFT_CONTRACT_ABI,
-          signer
-        );
-
-        const tnx = await nftContract.presaleMint({
-          value: utils.parseEther("0.01")
-        })
-        await tnx.wait();
-        
-        window.alert("you succesfully minted a CryptoDev!");
-      } catch (error) {
-        console.error(error);
-      }
-      setLoading(false);
-    };
-
-    const publicMint = async ()=>{
-      setLoading(true)
-      try {
-        const signer = await getProviderOrSigner(true);
-
-        const nftContract = new Contract(
-          NFT_CONTRACT_ADDRESS,
-          NFT_CONTRACT_ABI,
-          signer
-        );
-        const tnx = await nftContract.mint({
-          value: utils.parseEther("0.01"),
-        });
-        await tnx.wait();
-        
-        window.alert("you succesfully minted a CryptoDev!");
-      } catch (error) {
-        console.error(error);
-      }
-      setLoading(false)
-    };
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [presaleStarted, setPresaleStarted] = useState(false);
+  const [presaleEnded, setPresaleEnded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [tokenIdsMinted, setTokenIdsMinted] =useState("0");
+  const web3ModalRef=useRef();
 
 
-    const checkIfPresaleEnded =  async()=>{
-      try {
-        const provider = await getProviderOrSigner();
-        const nftContract = new Contract(
-          NFT_CONTRACT_ADDRESS,
-          NFT_CONTRACT_ABI,
-          provider
-        );
-        
-        const presaleEndedTime = await nftContract.presaleEnded();
-        const hasEnded = presaleEndedTime.lt(Math.floor(Date.now()/1000));
-        if(hasEnded){
-          setPresaleEnded(true);
-        }else{
-          setPresaleEnded(false);
-        }
-        return hasEnded;
-      } catch (err) {
-        console.error(err)
-        return false;
-      }
-    }
-
-    const getOwner = async ()=>{
-      try {
-        const signer = await getProviderOrSigner(true);
-        const nftContract = new Contract(
-          NFT_CONTRACT_ADDRESS,
-          NFT_CONTRACT_ABI,
-          signer
-        );
-          const owner = await nftContract.owner();
-          
-          const userAddress= await signer.getAddress();
-
-          if(owner.toLowerCase()===userAddress.toLowerCase()){
-            setIsOwner(true);
-          }
-
-      } catch (error) {
-        console.error(error)
-      }
-    }
-
-    const startPresale =async ()=>{
-      setLoading(true)
-      try {
-        const signer = await getProviderOrSigner(true);
-
-        const nftContract = new Contract(
-          NFT_CONTRACT_ADDRESS, 
-          NFT_CONTRACT_ABI, 
-          signer);
-
-          const txn = await nftContract.startPresale();
-          await txn.wait();
-
-          setPresaleStarted(true);
-
-
-      } catch (error) {
-        console.error(error)
-      }
-      setLoading(false)
-    };
-
-    const checkIfPresaleStarted =async()=>{
-      try {
-        const provider = await getProviderOrSigner();
-
-        const nftContract = new Contract(
-          NFT_CONTRACT_ADDRESS, 
-          NFT_CONTRACT_ABI, 
-          provider)
-
-          const _presaleStarted = await nftContract.presaleStarted();
-          if (!_presaleStarted) {
-            await getOwner();
-          }
-          setPresaleStarted(_presaleStarted);
-          return _presaleStarted;
-        } catch (err) {
-          console.error(err);
-          return false;
-        }
-      };
-
-    const connectWallet = async()=>{
-      try {
-        await getProviderOrSigner();
-        setWalletConnected(true);
-      } catch (error) {
-        console.error(error)
-        
-      }
-     
-    };
-
-    const getProviderOrSigner = async (needSigner = false)=>{
-      const provider = await web3ModalRef.current.connect();
-      const web3Provider = new providers.Web3Provider(provider);
-
-      const {chainId}= await web3Provider.getNetwork();
-        if (chainId !==5){
-          window.alert("Please switch to the Goeril Network");
-          throw new Error("Incorrect network");
-        }
-      if (needSigner){
-        const signer = web3Provider.getSigner();
-        return signer;
-      }
-      return web3Provider;
-    }
-
-    const OnPageLoad = async ()=>{
-      await connectWallet();
-      console.log("succesfully connect34e");
-      await getOwner();
-      const presaleStarted = await checkIfPresaleStarted();
-      if(presaleStarted){
-        await checkIfPresaleEnded();
-      }
-      await getNumMintedTokens();
-
-      setInterval(async() =>{
-        await getNumMintedTokens();
-      },5 *1000);
-
-      setInterval(async()=>{
-        const presaleStarted =await checkIfPresaleStarted();
-        
-      },5*1000);
-      
+ const presaleMint =async ()=>{
+  try{
+    const signer =await getProviderOrSigner(true);
+    const nftContract  = new Contract(NFT_CONTRACT_ADDRESS, abi, signer);
+    const tx =await nftContract.presaleMint({
+      value:utils.parserEther("0.01"),
+    });
+    setLoading(true);
+    await tx.wait();
+    setLoading(false);
+    window.alert("you succesfully minted a Crypto Dev!");
+  }catch(err){
+    console.error(err);
   }
-    useEffect(()=>{
-      if(!walletConnected){
-        web3ModalRef.current= new Web3Modal({
-          network: "goerli",
-          providerOptions:{},
-          disableInjectionProvider: false,
-        });
-        OnPageLoad();
-      }
-    },[])
+ };
 
-   const renderBody=()=>{
-      if(!walletConnected){
-        return(
-          <button onClick={connectWallet} className={styles.button}>
-            Connect your Wallet
-          </button>
-        )
-      }
 
-      if(loading){
-        return <span className={styles.description}>Loading...</span>;
-      }
 
-      if (isOwner && !presaleStarted){
-        return(
-          <button onClick={startPresale} className={styles.button}>
-            Start Presale
-          </button>
-        );
-      }
+ const publicMint = async () => {
+  try{
+    const signer = await getProviderOrSigner(true);
 
-      if(!presaleStarted){
-        return(
-        <div>
-          <span className={styles.description}>
-            Presale has not started yet, Come back later!
-          </span>
+    const nftContract = new Contract(NFT_CONTRACT_ADDRESS, abi, signer);
+    const tx = await nftContract.mint({
+      value:utils.pareseEther("0.01"),
+    });
+    setLoading(true);
+    await tx.wait();
+    setLoading(false);
+    window.alert("You succesfully minted a Crypto Dev!");
+  } catch (err) {
+    console.error(err);
+  }
+ };
+
+
+
+
+ const connectWallet = async()=>{
+  try{
+    await getProviderOrSigner();
+    setWalletConnected(true);
+  }catch(err){
+    console.error(err);
+  }
+ };
+
+
+
+
+ const startPresale = async ()=>{
+  try{
+    const signer = await getProviderOrSigner(true);
+    const nftContract = new Contract(NFT_CONTRACT_ADDRESS, abi, signer);
+
+    const tx = await nftContract.startPresale();
+    
+    setLoading(true);
+    await tx.wait();
+    setLoading(false);
+    await checkIfPresaleStarted();
+  }catch (err){
+    console.error(err);
+  }
+ };
+
+
+
+
+ const checkIfPresaleStarted = async()=>{
+  try{
+    const provider = await getProviderOrSigner();
+    const nftContract = new Contract(NFT_CONTRACT_ADDRESS , abi, provider);
+
+    const _presaleStarted = await nftContract.presaleStarted();
+    if(!_presaleStarted){
+      await getOwner();
+     }
+    setPresaleStarted(_presaleStarted);
+    return _presaleStarted;
+  } catch (err){
+    console.error(err)
+    return false;
+  }
+};
+
+
+
+ 
+
+ const checkIfPresaleEnded = async() =>{
+  try{
+  const provider = await getProviderOrSigner();
+
+  const nftContract = new Contract (NFT_CONTRACT_ADDRESS, abi , provider);
+
+  const _presaleEnded = await nftContract.presaleEnded();
+
+  const hasEnded = await _presaleEnded.lt(Math.floor(Date.now()/1000));
+  if (hasEnded){
+    setPresaleEnded(true);
+  }else {
+    setPresaleEnded(false);
+  }
+  return hasEnded;
+ }catch(err){
+  console.error(err);
+  return false;
+ }
+};
+
+
+
+
+const getOwner = async()=>{
+  try{
+    const provider = await getProviderOrSigner();
+
+    const nftContract = new Contract(NFT_CONTRACT_ADDRESS, abi, provider);
+
+    const _owner = await nftContract.owner();
+
+    const signer = await getProviderOrSigner(true);
+
+  const address = await signer.getAddress();
+  if(address.toLowerCase()=== _owner.toLowerCase()){
+    setIsOwner(true);
+  } 
+  }catch (err){
+   console.error(err.message);
+  }
+};
+
+
+
+
+const getTokenIdsMinted = async ()=>{
+ try{
+  const provider = await getProviderOrSigner();
+
+  const nftContract = new Contract(NFT_CONTRACT_ADDRESS, abi , provider);
+  const _tokenIds = await nftContract.tokenIds();
+
+  setTokenIdsMinted(_tokenIds.toString());
+}catch(err){
+  console.error(err);
+} 
+};
+
+
+
+
+
+ const getProviderOrSigner = async(needSigner = false)=>{
+  const provider = await web3ModalRef.current.connect();
+  const web3Provider = new providers.Web3Provider(provider);
+
+  const {chainId } = await web3Provider.getNetwork();
+  if(chainId !==5){
+    window.alert("Change the network to Goerli");
+    throw new Error("Change the network to goerli");
+  }
+  if(needSigner){
+    const signer = web3Provider.getSigner();
+    return signer;
+  }
+  return web3Provider;
+ };
+
+
+
+
+ useEffect(()=>{
+  if(!walletConnected){
+    web3ModalRef.current= new Web3Modal({
+      network: "goerli",
+      providerOptions:{},
+      disableInjectedProvider: false,
+    });
+    connectWallet();
+
+    const _presaleStarted = checkIfPresaleStarted();
+    if(_presaleStarted){
+      checkIfPresaleEnded();
+    }
+
+    getTokenIdsMinted();
+
+    const PresaleEndedInterval = setInterval(async function(){
+      const _presaleStarted = await checkIfPresaleStarted();
+      if(_presaleStarted){
+        const _presaleEnded= await checkIfPresaleEnded();
+        if(_presaleEnded){
+          clearInterval(PresaleEndedInterval);
+        }
+      }
+    },5*1000)
+
+    setInterval(async function (){
+      await getTokenIdsMinted();
+    },5*1000);
+  }
+},[walletConnected]);
+
+
+
+
+
+const renderButton=()=>{
+  if(!walletConnected){
+    return(
+      <button onClick ={connectWallet} className={styles.button}>
+        Connect your wallet
+      </button>    
+      );
+  }
+
+
+  if(walletConnected){
+    return(
+      <div className={styles.description}>
+          Your wallet is connected!
+      </div>
+
+    )
+  }
+
+  if(loading){
+    return <button calssName={styles.button}>Loading..</button>;
+  }
+
+  if (isOwner && !presaleStarted){
+    return(
+      <div>
+      <div className={styles.description}>
+        The ownner is connected
+      </div>
+      <button className={styles.button} onClick={startPresale}>
+        Start Presale!
+      </button>
+      </div>
+    );
+  }
+  if(presaleStarted && !presaleEnded){
+    return(
+      <div>
+        <div className={styles.description}>
+          Presale has Started!!! if your address is whitelisted, mint a Crypto Dev 🥳
         </div>
+        <button calssName={styles.button} onClick={presaleMint}>
+          Presale Mint 🚀
+        </button>
+      </div>
+    );
+  }
 
-      )}
-      if(presaleStarted && !presaleEnded){
-        
-        return(
-          <div>
-            <span className={styles.description}>
-              Presale has started! If your address is whitelisted, you can mint a 
-              CrytpoDev!
-              </span>
-            <button className={styles.button} onClick={presaleMint}>
-              Presale Mint
-              </button>
-          </div>
-        )
+  if(presaleStarted && presaleEnded){
+    return(
+      <button className={styles.button} onClick={publicMint}>
+        Public mint 🚀
+      </button>
+    );
+  }
+};
 
-      }
-      if(presaleStarted && presaleEnded){
-        return(
-          <div>
-          <span className={styles.description}>
-            Presale has Ended.  
-            You can mint a CryptoDev in Public sale , if any remain.
-            </span>
-            <button className={styles.button} onClick={publicMint}>
-            Public mint
-            </button>
-          </div>
-        );
 
-      }
 
-    };
 
-  return( 
+
+
+return(
   <div>
     <Head>
-      <title> Crypto Devs NFT</title>
+      <title>Crypto Devs</title>
+      <meta name="description" content ="Whitelist-Dapp"/>
+      <link rel ="icon" href="/favicon.ico"/>
     </Head>
     <div className={styles.main}>
       <div>
-        <h1 className={styles.title}>Welcome to CryptoDevs</h1>
+        <hi className={styles.title}>Welcome to Crypto Devs!</hi>
         <div className={styles.description}>
-          CryptoDevs NFT is a collection for developers in web3
+          it&#39;s an NFT Collection for developers in crypto
         </div>
         <div className={styles.description}>
-          {numTokensMinted}/20 have been minted already!
+          {tokenIdsMinted}/20 have been minted
         </div>
-      
-  
-      {renderBody()}
+        {renderButton()}
       </div>
-      <img className={styles.image} src="./cryptodevs/0.svg" />
+      <div>
+        <img className={styles.footer} src="./cryptodevs/0.svg"/>
+      </div>
     </div>
-    <footer className={styles.footer}>
-      Made with &#10084; by Crypto Devs
-    </footer>
+   <footer className={styles.footer}>
+    Made with &#10084; by Cyrpto devs
+   </footer>
   </div>
-  );
+);
 }
-``
+
+
