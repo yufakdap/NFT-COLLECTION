@@ -20,7 +20,7 @@ export default function Home() {
     const signer =await getProviderOrSigner(true);
     const nftContract  = new Contract(NFT_CONTRACT_ADDRESS, abi, signer);
     const tx =await nftContract.presaleMint({
-      value:utils.parserEther("0.01"),
+      value:utils.parseEther("0.01"),
     });
     setLoading(true);
     await tx.wait();
@@ -39,7 +39,7 @@ export default function Home() {
 
     const nftContract = new Contract(NFT_CONTRACT_ADDRESS, abi, signer);
     const tx = await nftContract.mint({
-      value:utils.pareseEther("0.01"),
+      value:utils.parseEther("0.01"),
     });
     setLoading(true);
     await tx.wait();
@@ -140,13 +140,14 @@ const getOwner = async()=>{
     const signer = await getProviderOrSigner(true);
 
   const address = await signer.getAddress();
-  if(address.toLowerCase()=== _owner.toLowerCase()){
+  if(address.toLowerCase() === _owner.toLowerCase()){
     setIsOwner(true);
   } 
   }catch (err){
    console.error(err.message);
   }
 };
+
 
 
 
@@ -203,12 +204,12 @@ const getTokenIdsMinted = async ()=>{
 
     getTokenIdsMinted();
 
-    const PresaleEndedInterval = setInterval(async function(){
+    const presaleEndedInterval = setInterval(async function(){
       const _presaleStarted = await checkIfPresaleStarted();
       if(_presaleStarted){
         const _presaleEnded= await checkIfPresaleEnded();
         if(_presaleEnded){
-          clearInterval(PresaleEndedInterval);
+          clearInterval(presaleEndedInterval);
         }
       }
     },5*1000)
@@ -226,45 +227,52 @@ const getTokenIdsMinted = async ()=>{
 const renderButton=()=>{
   if(!walletConnected){
     return(
+      <div>
+      <div className={styles.description}>
+        please connect to wallet
+      </div>
       <button onClick ={connectWallet} className={styles.button}>
         Connect your wallet
-      </button>    
+      </button>  
+      </div>  
       );
   }
 
+ 
 
-  if(walletConnected){
-    return(
-      <div className={styles.description}>
-          Your wallet is connected!
-      </div>
-
-    )
-  }
 
   if(loading){
-    return <button calssName={styles.button}>Loading..</button>;
+    return <button cName={styles.button}>Loading..</button>;
   }
 
   if (isOwner && !presaleStarted){
     return(
-      <div>
-      <div className={styles.description}>
-        The ownner is connected
-      </div>
+      
       <button className={styles.button} onClick={startPresale}>
         Start Presale!
       </button>
+      
+    );
+  }
+
+
+
+
+  if (!presaleStarted){
+    return(
+      <div>
+        <div className={styles.description}>Presale hasn&#39;t started!</div>
       </div>
     );
   }
+
   if(presaleStarted && !presaleEnded){
     return(
       <div>
         <div className={styles.description}>
           Presale has Started!!! if your address is whitelisted, mint a Crypto Dev 🥳
         </div>
-        <button calssName={styles.button} onClick={presaleMint}>
+        <button className={styles.button} onClick={presaleMint}>
           Presale Mint 🚀
         </button>
       </div>
